@@ -1,0 +1,206 @@
+openapi: 3.0.3
+info:
+  title: Recipe Management & Sharing API
+  version: 1.0.0
+  description: REST API for authentication, recipes, favorites, collections, reviews, social feed and administration.
+servers:
+  - url: http://localhost:3000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: {type: string}
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name,email,password]
+              properties:
+                name: {type: string}
+                email: {type: string, format: email}
+                password: {type: string, minLength: 8}
+      responses:
+        '201': {description: Created; returns user and JWT}
+        '400': {description: Validation error}
+  /api/auth/login:
+    post:
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email,password]
+              properties:
+                email: {type: string, format: email}
+                password: {type: string}
+      responses:
+        '200': {description: Authenticated; returns user and JWT}
+        '401': {description: Invalid credentials}
+  /api/auth/me:
+    get:
+      summary: Current authenticated user
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Current profile}
+  /api/users/me:
+    patch:
+      summary: Update own profile
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Updated profile}
+  /api/users/{id}:
+    get:
+      summary: Public user profile
+      parameters: [{in: path, name: id, required: true, schema: {type: string, format: uuid}}]
+      responses:
+        '200': {description: Profile and counts}
+  /api/users/{id}/follow:
+    post:
+      summary: Follow a user
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      responses:
+        '201': {description: Followed}
+    delete:
+      summary: Unfollow a user
+      security: [{bearerAuth: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Unfollowed}
+  /api/recipes:
+    get:
+      summary: Browse and search recipes
+      parameters:
+        - {in: query, name: q, schema: {type: string}, description: Full-text title/description search}
+        - {in: query, name: ingredient, schema: {type: string}}
+        - {in: query, name: category, schema: {type: string}}
+        - {in: query, name: dietary, schema: {type: string}}
+        - {in: query, name: difficulty, schema: {type: string, enum: [easy,medium,hard]}}
+        - {in: query, name: max_time, schema: {type: integer}}
+        - {in: query, name: limit, schema: {type: integer}}
+        - {in: query, name: offset, schema: {type: integer}}
+      responses:
+        '200': {description: Paginated recipe results}
+    post:
+      summary: Create recipe
+      security: [{bearerAuth: []}]
+      responses:
+        '201': {description: Recipe created}
+  /api/recipes/{id}:
+    get:
+      summary: Get recipe details
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: Recipe and ingredients}
+    patch:
+      summary: Update own recipe (admin can update any)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Updated recipe}
+    delete:
+      summary: Delete own recipe (admin can delete any)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Deleted}
+  /api/recipes/image:
+    post:
+      summary: Upload recipe image to private S3 bucket
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image: {type: string, format: binary}
+      responses:
+        '201': {description: S3 key and expiring signed URL}
+  /api/favorites:
+    get:
+      summary: List favorites
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Favorite recipes}
+  /api/favorites/{recipeId}:
+    post:
+      summary: Save recipe
+      security: [{bearerAuth: []}]
+      responses:
+        '201': {description: Saved}
+    delete:
+      summary: Remove favorite
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Removed}
+  /api/collections:
+    get:
+      summary: List own collections
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Collections}
+    post:
+      summary: Create collection
+      security: [{bearerAuth: []}]
+      responses:
+        '201': {description: Created}
+  /api/collections/{id}/recipes:
+    get:
+      summary: List recipes in collection
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Recipes}
+  /api/recipes/{id}/reviews:
+    get:
+      summary: List recipe reviews
+      responses:
+        '200': {description: Reviews and reviewer names}
+    post:
+      summary: Create or update own rating/review
+      security: [{bearerAuth: []}]
+      responses:
+        '201': {description: Review saved}
+  /api/feed:
+    get:
+      summary: Activity feed from followed users
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Recent activity}
+  /api/admin/users:
+    get:
+      summary: List users (admin)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Users}
+  /api/admin/users/{id}/status:
+    patch:
+      summary: Change user status (admin)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Updated user}
+  /api/admin/recipes:
+    get:
+      summary: List recipes for moderation (admin)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Recipes}
+  /api/admin/recipes/{id}/status:
+    patch:
+      summary: Publish, hide or pend a recipe (admin)
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: Updated recipe}
